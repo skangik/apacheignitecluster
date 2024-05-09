@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ignite
+  namespace: ignite
+spec:
+  selector:
+    matchLabels:
+      app: ignite
+  serviceName: ignite
+  podManagementPolicy: Parallel
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: ignite
+    spec:
+      serviceAccountName: ignite
+      securityContext:
+        runAsUser: 10000   # Add securityContext here
+      containers:
+      - name: ignite
+        image: europe-west2-docker.pkg.dev/lbg-coe/demo-repo/apacheignite-jdk17-image:v3
+        env:
+        - name: OPTION_LIBS
+          value: ignite-kubernetes,ignite-rest-http
+        - name: CONFIG_URI
+          value: file:///config/ignite-config.xml
+        - name: IGNITE_QUIET
+          value: "false"
+        - name: IGNITE_WORK_DIR
+          value: "/opt/ignite/work"
+        - name: JVM_OPTS
+          value: "-Djava.net.preferIPv4Stack=true"
+        ports:
+        - containerPort: 11211 # JDBC port number.
+        - containerPort: 47100 # communication SPI port number.
+        - containerPort: 47500 # discovery SPI port number.
+        - containerPort: 49112 # JMX port number.
+        - containerPort: 10800 # SQL port number.
+        - containerPort: 8080 # REST port number.
+        - containerPort: 10900 # Thin clients port number.
+        volumeMounts:
+      #  - name: ignite-storage
+      #    mountPath: "/opt/ignite/work"
+        - name: shared
+          mountPath: "/opt/ignite/shared"
+        - name: ignite-config
+          mountPath: "/config"
+
+      volumes:
+      - name: shared
+        emptyDir: {}
+      - name: ignite-config
+        configMap:
+          name: ignite-config
+
+#  volumeClaimTemplates:
+#  - metadata:
+#      name: ignite-storage
+#    spec:
+#      accessModes: [ "ReadWriteOnce" ]
+#      storageClassName: "ignite-persistence-storage-class"
+#      resources:
+#        requests:
+#          storage: "1000Gi"
